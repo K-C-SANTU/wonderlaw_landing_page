@@ -1,251 +1,200 @@
-import React, { useState } from 'react';
+import React from "react";
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Typography,
-  Box,
-  Stack,
-  Divider,
-  Paper,
-} from '@mui/material';
-import type { Location } from './BookingPage';
-
-interface Tickets {
-  adult: number;
-  child: number;
-  senior: number;
-  adultCombo: number;
-  childCombo: number;
-  seniorCombo: number;
-}
-
-interface UserInfo {
-  name: string;
-  email: string;
-  mobile: string;
-  pinCode: string;
-  termsAccepted: boolean;
-}
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Button,
+    Typography,
+    Box,
+    Divider,
+    CircularProgress,
+} from "@mui/material";
+import type { Location } from "./BookingPage";
 
 interface SummaryModalProps {
-  onClose: () => void;
-  onConfirm: () => void;
-  location: Location;
-  date: string;
-  tickets: Tickets;
-  userInfo: UserInfo;
+    onClose: () => void;
+    onConfirm: () => void;
+    location: Location;
+    date: string;
+    tickets: {
+        adult: number;
+        child: number;
+        senior: number;
+        adultCombo: number;
+        childCombo: number;
+        seniorCombo: number;
+    };
+    userInfo: {
+        name: string;
+        email: string;
+        mobile: string;
+        pinCode: string;
+    };
 }
 
 const SummaryModal: React.FC<SummaryModalProps> = ({
-  onClose,
-  onConfirm,
-  location,
-  date,
-  tickets,
-  userInfo,
+    onClose,
+    onConfirm,
+    location,
+    date,
+    tickets,
+    userInfo,
 }) => {
-  const [isProcessing, setIsProcessing] = useState(false);
+    const [isProcessing, setIsProcessing] = React.useState(false);
 
-  const handleConfirm = () => {
-    setIsProcessing(true);
-    onConfirm();
-  };
+    const handleConfirm = () => {
+        setIsProcessing(true);
+        onConfirm();
+    };
 
-  const calculateSubtotal = () => {
-    const { adultPrice } = location;
-    const regularTotal = (
-      tickets.adult * adultPrice +
-      tickets.child * (adultPrice * 0.8) +
-      tickets.senior * (adultPrice * 0.5)
-    );
-    const comboTotal = (
-      tickets.adultCombo * (adultPrice + 500) +
-      tickets.childCombo * (adultPrice * 0.8 + 500) +
-      tickets.seniorCombo * (adultPrice * 0.5 + 500)
-    );
-    return regularTotal + comboTotal;
-  };
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString("en-IN", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+        });
+    };
 
-  const calculateDiscount = () => {
-    if (!date) return 0;
-    const bookingDate = new Date(date);
-    const today = new Date();
-    const daysDiff = Math.floor((bookingDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    return daysDiff >= 2 ? 0.2 : daysDiff >= 1 ? 0.1 : 0;
-  };
+    const formatCurrency = (amount: number) => {
+        return new Intl.NumberFormat("en-IN", {
+            style: "currency",
+            currency: "INR",
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(amount);
+    };
 
-  const subtotal = calculateSubtotal();
-  const discount = calculateDiscount();
-  const discountAmount = subtotal * discount;
-  const total = subtotal - discountAmount;
+    const calculatePrices = () => {
+        const basePrice = location.adultPrice;
+        const comboCharge = 500;
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
+        // Calculate original prices without any discounts
+        const adultTotal = (tickets.adult * basePrice) + (tickets.adultCombo * (basePrice + comboCharge));
+        const childTotal = (tickets.child * (basePrice * 0.8)) + (tickets.childCombo * ((basePrice * 0.8) + comboCharge));
+        const seniorTotal = (tickets.senior * (basePrice * 0.5)) + (tickets.seniorCombo * ((basePrice * 0.5) + comboCharge));
 
-  return (
-    <Dialog
-      open={true}
-      onClose={!isProcessing ? onClose : undefined}
-      maxWidth="sm"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 2,
-          m: { xs: 2, sm: 4 },
-        },
-      }}
-    >
-      <DialogTitle>
-        <Typography variant="h5" component="div" fontWeight="bold">
-          Booking Summary
-        </Typography>
-      </DialogTitle>
+        // Calculate adult discount
+        const bookingDate = new Date(date);
+        const today = new Date();
+        const daysDiff = Math.floor((bookingDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        const adultDiscount = daysDiff >= 2 ? 0.2 : daysDiff >= 1 ? 0.1 : 0;
+        const adultDiscountAmount = adultTotal * adultDiscount;
 
-      <DialogContent>
-        <Stack spacing={3}>
-          {/* Location and Date */}
-          <Box>
-            <Typography variant="subtitle1" color="primary" gutterBottom>
-              Visit Details
-            </Typography>
-            <Paper variant="outlined" sx={{ p: 2 }}>
-              <Stack spacing={1}>
-                <Typography variant="body1">
-                  <strong>Location:</strong> {location.name}
-                </Typography>
-                <Typography variant="body1">
-                  <strong>Date:</strong> {formatDate(date)}
-                </Typography>
-              </Stack>
-            </Paper>
-          </Box>
+        const subtotal = adultTotal + childTotal + seniorTotal;
+        
+        return {
+            originalAmount: subtotal,
+            adultDiscount: adultDiscountAmount,
+            subtotalAfterDiscount: subtotal - adultDiscountAmount,
+        };
+    };
 
-          {/* Ticket Details */}
-          <Box>
-            <Typography variant="subtitle1" color="primary" gutterBottom>
-              Ticket Details
-            </Typography>
-            <Paper variant="outlined" sx={{ p: 2 }}>
-              <Stack spacing={1.5}>
-                {tickets.adult > 0 && (
-                  <Typography variant="body1">
-                    Adult Tickets: {tickets.adult}
-                  </Typography>
-                )}
-                {tickets.child > 0 && (
-                  <Typography variant="body1">
-                    Child Tickets: {tickets.child}
-                  </Typography>
-                )}
-                {tickets.senior > 0 && (
-                  <Typography variant="body1">
-                    Senior Tickets: {tickets.senior}
-                  </Typography>
-                )}
-                {tickets.adultCombo > 0 && (
-                  <Typography variant="body1">
-                    Adult Combo Tickets: {tickets.adultCombo}
-                  </Typography>
-                )}
-                {tickets.childCombo > 0 && (
-                  <Typography variant="body1">
-                    Child Combo Tickets: {tickets.childCombo}
-                  </Typography>
-                )}
-                {tickets.seniorCombo > 0 && (
-                  <Typography variant="body1">
-                    Senior Combo Tickets: {tickets.seniorCombo}
-                  </Typography>
-                )}
-              </Stack>
-            </Paper>
-          </Box>
+    const { originalAmount, adultDiscount, subtotalAfterDiscount } = calculatePrices();
+    const convenienceFee = 30;
+    const gst = (subtotalAfterDiscount + convenienceFee) * 0.18;
+    const total = subtotalAfterDiscount + convenienceFee + gst;
 
-          {/* Contact Details */}
-          <Box>
-            <Typography variant="subtitle1" color="primary" gutterBottom>
-              Contact Details
-            </Typography>
-            <Paper variant="outlined" sx={{ p: 2 }}>
-              <Stack spacing={1}>
-                <Typography variant="body1">
-                  <strong>Name:</strong> {userInfo.name}
-                </Typography>
-                <Typography variant="body1">
-                  <strong>Email:</strong> {userInfo.email}
-                </Typography>
-                <Typography variant="body1">
-                  <strong>Mobile:</strong> {userInfo.mobile}
-                </Typography>
-                <Typography variant="body1">
-                  <strong>PIN Code:</strong> {userInfo.pinCode}
-                </Typography>
-              </Stack>
-            </Paper>
-          </Box>
+    return (
+        <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
+            <DialogTitle>Booking Summary</DialogTitle>
+            <DialogContent>
+                <Box sx={{ p: 2 }}>
+                    <Typography>
+                        <strong>Name:</strong> {userInfo.name}
+                    </Typography>
+                    <Typography>
+                        <strong>Park:</strong> {location.name}
+                    </Typography>
+                    <Typography>
+                        <strong>Visit Date:</strong> {formatDate(date)}
+                    </Typography>
+                    <Typography>
+                        <strong>Email:</strong> {userInfo.email}
+                    </Typography>
+                    <Typography>
+                        <strong>Mobile:</strong> {userInfo.mobile}
+                    </Typography>
+                    <Typography>
+                        <strong>Pin code:</strong> {userInfo.pinCode}
+                    </Typography>
 
-          {/* Price Breakdown */}
-          <Box>
-            <Typography variant="subtitle1" color="primary" gutterBottom>
-              Price Details
-            </Typography>
-            <Paper variant="outlined" sx={{ p: 2 }}>
-              <Stack spacing={2}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography>Subtotal</Typography>
-                  <Typography>₹{subtotal.toFixed(2)}</Typography>
+                    <Divider sx={{ my: 2 }} />
+
+                    {tickets.adult > 0 && (
+                        <Typography>
+                            No. of Adult tickets: {tickets.adult}
+                        </Typography>
+                    )}
+                    {tickets.child > 0 && (
+                        <Typography>
+                            No. of Child tickets: {tickets.child}
+                        </Typography>
+                    )}
+                    {tickets.senior > 0 && (
+                        <Typography>
+                            No. of Senior Citizen tickets: {tickets.senior}
+                        </Typography>
+                    )}
+                    {tickets.adultCombo > 0 && (
+                        <Typography>
+                            No. of Adult + Meal Combo: {tickets.adultCombo}
+                        </Typography>
+                    )}
+                    {tickets.childCombo > 0 && (
+                        <Typography>
+                            No. of Child + Meal Combo: {tickets.childCombo}
+                        </Typography>
+                    )}
+                    {tickets.seniorCombo > 0 && (
+                        <Typography>
+                            No. of Senior Citizen + Combo: {tickets.seniorCombo}
+                        </Typography>
+                    )}
+
+                    <Divider sx={{ my: 2 }} />
+
+                    <Typography>
+                        <strong>Amount:</strong> {formatCurrency(originalAmount)}
+                    </Typography>
+                    {adultDiscount > 0 && (
+                        <Typography color="success.main">
+                            <strong>Adult Ticket Discount:</strong> -{formatCurrency(adultDiscount)}
+                        </Typography>
+                    )}
+                    <Typography>
+                        <strong>Subtotal after discount:</strong> {formatCurrency(subtotalAfterDiscount)}
+                    </Typography>
+                    <Typography>
+                        <strong>Convenience Fee:</strong>{" "}
+                        {formatCurrency(convenienceFee)}
+                    </Typography>
+                    <Typography>
+                        <strong>GST (18%):</strong> {formatCurrency(gst)}
+                    </Typography>
+                    <Typography variant="h6" sx={{ mt: 1 }}>
+                        <strong>Total Amount:</strong> {formatCurrency(total)}
+                    </Typography>
                 </Box>
-                {discount > 0 && (
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', color: 'success.main' }}>
-                    <Typography>Advance Booking Discount ({discount * 100}%)</Typography>
-                    <Typography>-₹{discountAmount.toFixed(2)}</Typography>
-                  </Box>
-                )}
-                <Divider />
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="h6">Total Amount</Typography>
-                  <Typography variant="h6" color="primary">
-                    ₹{total.toFixed(2)}
-                  </Typography>
-                </Box>
-              </Stack>
-            </Paper>
-          </Box>
-        </Stack>
-      </DialogContent>
-
-      <DialogActions sx={{ p: 3 }}>
-        <Button 
-          onClick={onClose} 
-          variant="outlined" 
-          sx={{ mr: 1 }}
-          disabled={isProcessing}
-        >
-          Edit Booking
-        </Button>
-        <Button
-          variant="contained"
-          onClick={handleConfirm}
-          disabled={isProcessing}
-          sx={{
-            minWidth: { xs: '120px', sm: '150px' },
-            position: 'relative',
-          }}
-        >
-          {isProcessing ? 'Processing...' : 'Confirm'}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={onClose} disabled={isProcessing}>
+                    Cancel
+                </Button>
+                <Button
+                    onClick={handleConfirm}
+                    variant="contained"
+                    disabled={isProcessing}
+                    startIcon={
+                        isProcessing ? <CircularProgress size={20} /> : null
+                    }
+                >
+                    {isProcessing ? "Processing..." : "Confirm & Pay"}
+                </Button>
+            </DialogActions>
+        </Dialog>
+    );
 };
 
-export default SummaryModal; 
+export default SummaryModal;

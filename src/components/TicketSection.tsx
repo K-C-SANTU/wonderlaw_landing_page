@@ -39,7 +39,7 @@ const TicketSection: React.FC<TicketSectionProps> = ({
   tickets,
   setTickets,
 }) => {
-  const getDiscount = () => {
+  const getAdultDiscount = () => {
     if (!selectedDate) return 0;
     const bookingDate = new Date(selectedDate);
     const today = new Date();
@@ -49,15 +49,21 @@ const TicketSection: React.FC<TicketSectionProps> = ({
 
   const calculatePrice = (basePrice: number, type: 'adult' | 'child' | 'senior', isCombo: boolean) => {
     let price = basePrice;
-    const advanceDiscount = getDiscount();
     
-    if (type === 'child') price *= 0.8;
-    if (type === 'senior') price *= 0.5;
-    
-    if (advanceDiscount > 0) {
-      price *= (1 - advanceDiscount);
+    // Apply type-based discounts first
+    if (type === 'child') {
+      price *= 0.8; // Fixed 20% off for children
+    } else if (type === 'senior') {
+      price *= 0.5; // Fixed 50% off for seniors
+    } else if (type === 'adult') {
+      // Only apply date-based discount for adults
+      const adultDiscount = getAdultDiscount();
+      if (adultDiscount > 0) {
+        price *= (1 - adultDiscount);
+      }
     }
 
+    // Add combo price after discounts
     if (isCombo) price += 500;
 
     return Math.round(price);
@@ -159,7 +165,7 @@ const TicketSection: React.FC<TicketSectionProps> = ({
               Ticket + Meal Combo
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              Includes lunch and evening snacks
+              Includes lunch and evening snacks (+₹500)
             </Typography>
           </Box>
         </AccordionSummary>
@@ -172,7 +178,7 @@ const TicketSection: React.FC<TicketSectionProps> = ({
         </AccordionDetails>
       </Accordion>
 
-      {/* Total Amount Preview */}
+      {/* Discount Information */}
       <Paper 
         elevation={0} 
         sx={{ 
@@ -183,11 +189,13 @@ const TicketSection: React.FC<TicketSectionProps> = ({
           borderColor: 'primary.100'
         }}
       >
-        <Typography variant="subtitle2" color="primary.main" gutterBottom>
-          Advance Booking Discount: {getDiscount() * 100}%
-        </Typography>
+        {getAdultDiscount() > 0 && (
+          <Typography variant="subtitle2" color="primary.main" gutterBottom>
+            Adult Tickets: {getAdultDiscount() * 100}% advance booking discount
+          </Typography>
+        )}
         <Typography variant="caption" color="text.secondary">
-          * Child tickets: 20% off | Senior tickets: 50% off
+          * Child tickets: Fixed 20% off | Senior tickets: Fixed 50% off
         </Typography>
       </Paper>
     </Stack>
